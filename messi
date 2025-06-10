@@ -1,0 +1,10 @@
+public class messi{
+
+public void main(String args[]){
+
+System.out.println("messi el 10");
+
+}
+
+
+}
