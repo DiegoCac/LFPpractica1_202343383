@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analizador Léxico Pokémon</title>
+  <style>
+    /* Estilos generales */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+/* Barra lateral */
+.sidebar {
+  width: 250px;
+  background-color: #fff;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.analyze-btn {
+  background-color: #28a745;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}
+
+/* Editor de texto */
+.editor-section {
+  flex: 1;
+  padding: 20px;
+  background-color: #fff;
+  overflow-y: auto;
+}
+
+#editor {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 1px solid #ccc;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+/* Tabla de tokens */
+.token-table-section {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.token-table th,
+.token-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.token-table th {
+  background-color: #f1f1f1;
+  font-weight: bold;
+}
+
+/* Resultados */
+.results-section {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.pokemon-card {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.pokemon-card img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.pokemon-info {
+  flex: 1;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 10px 0;
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Barra lateral -->
+    <div class="sidebar">
+      <h2>Archivo</h2>
+      <ul>
+        <li><button onclick="clearEditor()">Limpiar Editor</button></li>
+        <li><button onclick="loadFile()">Cargar Archivo</button></li>
+        <li><button onclick="saveFile()">Guardar Archivo</button></li>
+      </ul>
+      <button class="analyze-button" onclick="analyze()">Analizar</button>
+    </div>
+
+    <!-- Editor de texto -->
+    <div class="editor">
+      <textarea id="editor" placeholder="Ingresa tu archivo PKLFP aquí..."></textarea>
+    </div>
+  </div>
+
+  <!-- Tabla de tokens -->
+  <div class="token-table-container">
+    <h2>Tabla de Tokens</h2>
+    <table class="token-table">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Fila</th>
+          <th>Columna</th>
+          <th>Lexema</th>
+          <th>Token</th>
+        </tr>
+      </thead>
+      <tbody id="tokenTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Resultados -->
+  <div class="results">
+    <h2>Resultados</h2>
+    <div id="output"></div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    // Referencias a elementos
+    const editor = document.getElementById('editor');
+    const tokenTableBody = document.getElementById('tokenTableBody');
+    const outputDiv = document.getElementById('output');
+
+    // Función para analizar el texto (conectada al backend)
+    async function analyze() {
+      const content = editor.value.trim();
+      if (!content) {
+        alert('Por favor ingresa contenido en el editor.');
+        return;
+      }
+
+      // Mostrar loading
+      outputDiv.innerHTML = '<div class="loading">Analizando archivo...</div>';
+      tokenTableBody.innerHTML = '';
+
+      try {
+        // Crear FormData para enviar el contenido como archivo
+        const formData = new FormData();
+        const blob = new Blob([content], { type: 'text/plain' });
+        formData.append('archivo', blob, 'archivo.pklfp');
+
+        // Hacer petición al backend
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Mostrar tokens en la tabla
+        tokenTableBody.innerHTML = '';
+        if (data.tokens && data.tokens.length > 0) {
+          data.tokens.forEach((token, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${index + 1}</td>
+              <td>${token.fila}</td>
+              <td>${token.columna}</td>
+              <td>${token.lexema}</td>
+              <td>${token.tipo}</td>
+            `;
+            tokenTableBody.appendChild(row);
+          });
+        }
+
+        // Mostrar resultados de Pokémon
+        outputDiv.innerHTML = '';
+        if (data.seleccionados && data.seleccionados.length > 0) {
+          data.seleccionados.forEach(pokemon => {
+            const card = document.createElement('div');
+            card.className = 'pokemon-card';
+            card.innerHTML = `
+              <img src="${pokemon.sprite}" alt="${pokemon.nombre}" onerror="this.src='https://pokeapi.co/api/v2/pokemon/'">
+              <div class="pokemon-info">
+                <h3>${pokemon.nombre}</h3>
+                <p><strong>Tipos:</strong> ${pokemon.tipos.join(', ')}</p>
+                <p><strong>Salud:</strong> ${pokemon.salud}</p>
+                <p><strong>Ataque:</strong> ${pokemon.ataque}</p>
+                <p><strong>Defensa:</strong> ${pokemon.defensa}</p>
+                <p><strong>IV:</strong> ${pokemon.iv}%</p>
+              </div>
+            `;
+            outputDiv.appendChild(card);
+          });
+        } else {
+          outputDiv.innerHTML = '<p>No se encontraron Pokémon válidos en el archivo.</p>';
+        }
+
+      } catch (error) {
+        console.error('Error al analizar:', error);
+        outputDiv.innerHTML = `<div class="error">Error al procesar el archivo: ${error.message}</div>`;
+      }
+    }
+
+    // Funciones para cargar y guardar archivos
+    function loadFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pklfp,.txt';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            editor.value = e.target?.result || '';
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
+    }
+
+    function saveFile() {
+      const content = editor.value;
+      if (!content.trim()) {
+        alert('No hay contenido para guardar.');
+        return;
+      }
+      
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'archivo.pklfp';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Función para limpiar el editor
+    function clearEditor() {
+      if (editor.value.trim() && !confirm('¿Estás seguro de que quieres limpiar el editor?')) {
+        return;
+      }
+      editor.value = '';
+      tokenTableBody.innerHTML = '';
+      outputDiv.innerHTML = '';
+    }
+
+    
+    
+  </script>
+</body>
+</html>
